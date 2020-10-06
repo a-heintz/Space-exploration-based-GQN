@@ -53,8 +53,9 @@ if __name__ == '__main__':
     parser.add_argument('--pretrained_path', type=str, help='location to save checkpoint models')
     parser.add_argument('--dataset_folder_length_train', type=int, default=900)
     parser.add_argument('--dataset_folder_length_test', type=int, default=100)
-    parser.add_argument('--resume_training', type=bool, default=False)
+    parser.add_argument('--resume_training', type=str, default="False")
     args = parser.parse_args()
+    print(args.resume_training)
     print('Creating GQN Model')
     # Create model and optimizer
     model = GenerativeQueryNetwork(x_dim=3, v_dim=7, r_dim=256, h_dim=128, z_dim=64, L=8).to(device)
@@ -139,17 +140,20 @@ if __name__ == '__main__':
     # Tensorbard writer
     writer = SummaryWriter(log_dir=args.log_dir)
     
-    if args.resume_training == True:
+    if args.resume_training == "True":
         checkpoints_dir = os.listdir(args.pretrained_path)
-        checkpoints_dir = [x for x in checkpoints_dir if 'checkpoint_checkpoint_' in x]
+        #checkpoints_dir = [x for x in checkpoints_dir if 'checkpoint_checkpoint_' in x]
         #print(checkpoints_dir)
         resume_epoch = len(checkpoints_dir)
         
         checkpoint_path = os.path.join(args.pretrained_path, checkpoints_dir[-1])
         
-        to_load = {'trainer': trainer, 'model': model, 'optimizer': optimizer, 'sigma_scheme': sigma_scheme, 'mu_scheme': mu_scheme}
-        #print(checkpoint_path)
+        #to_load = {'model': model, 'optimizer': optimizer, 'sigma_scheme': sigma_scheme, 'mu_scheme': mu_scheme}
+        to_load = to_save
+        
+        print(checkpoint_path)
         checkpoint = torch.load(checkpoint_path)
+        #print(checkpoint)
         Checkpoint.load_objects(to_load=to_load, checkpoint=checkpoint)
         
         trainer.state.iteration = (resume_epoch) * len(train_loader)
@@ -213,5 +217,11 @@ if __name__ == '__main__':
             checkpoint_handler(engine, { 'model_exception': model })
         else: raise e
 
+    print("Before")
+    print(sigma_scheme.__repr__())
+    print(mu_scheme.__repr__())
     trainer.run(train_loader, args.n_epochs)
+    print("After")
+    print(sigma_scheme.__repr__())
+    print(mu_scheme.__repr__())
     writer.close()
