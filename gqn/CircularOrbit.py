@@ -12,20 +12,25 @@ class CircularOrbit(Dataset):
     :param fraction: fraction of dataset to use
     :param target_transform: transform on viewpoints
     """
-    def __init__(self, root_dir, train=True, transform=None, fraction=1.0, target_transform=None):
+    def __init__(self, root_dir, train=True, num_samples = 80000, transform=None, fraction=1.0, target_transform=None):
         super(CircularOrbit, self).__init__()
         assert fraction > 0.0 and fraction <= 1.0
         self.root_dir = root_dir
         
-        cur_dir = os.path.join(root_dir, "images")
-        cur_dir_fldr = os.listdir(cur_dir)
+        #cur_dir = os.path.join(root_dir, "images")
+        #cur_dir_fldr = os.listdir(cur_dir)
         
-        recs = []
-        for fldr in cur_dir_fldr[:]:
-          scene_fldr = os.path.join(cur_dir, fldr)
-          recs.append(scene_fldr)
-        self.records = recs
-        self.records = self.records[:int(len(self.records)*fraction)]
+        #recs = []
+        #for fldr in cur_dir_fldr[:]:
+          #scene_fldr = os.path.join(cur_dir, fldr)
+          #recs.append(scene_fldr)
+        #self.records = recs
+        #self.records = self.records[:int(len(self.records)*fraction)]
+        
+        orbit_dir_path = os.path.join(root_dir, "images")
+        self.orbits_dir = os.listdir(orbit_dir_path)
+        self.records = list(range(num_samples))
+        
         self.transform = transform
         self.target_transform = target_transform
 
@@ -33,8 +38,11 @@ class CircularOrbit(Dataset):
         return len(self.records)
 
     def __getitem__(self, idx):
-        scene_path = self.records[idx]
-        num_orbit = idx
+        #scene_path = self.records[idx]
+        #num_orbit = idx
+        orbit_dir = np.random.choice(self.orbits_dir)
+        scene_path = os.path.join(self.root_dir, "images", orbit_dir)
+        num_orbit = int(orbit_dir[:-3])
         
         orbits_pos = np.load(os.path.join(self.root_dir, "state_files", 'orbits_positions.npy'))
         orbits_att = np.load(os.path.join(self.root_dir, "state_files",'orbits_attitudes.npy'))
@@ -54,7 +62,7 @@ class CircularOrbit(Dataset):
             img_path = os.path.join(scene_path, (image_name+".png"))
             
             img = Image.open(img_path)
-            img = img.resize((64,64))
+            #img = img.resize((64,64))
             
             background = Image.new('RGB', img.size, (255,255,255))
             background.paste(img, mask=img.split()[3])  # 3 is the alpha channel
@@ -76,5 +84,4 @@ class CircularOrbit(Dataset):
         images = torch.from_numpy(img_list)
         viewpoints = torch.from_numpy(viewpoint_list)
 
-        return images.unsqueeze_(0).float(), viewpoints.unsqueeze_(0).float()
-
+        return images.float(), viewpoints.float()
