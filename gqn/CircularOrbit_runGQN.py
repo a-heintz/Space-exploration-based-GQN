@@ -70,9 +70,9 @@ if __name__ == '__main__':
     mu_scheme = Annealer(5 * 10 ** (-6), 5 * 10 ** (-6), 1.6 * 10 ** 5)
     print('Creating train dataset')
     # Load the dataset
-    train_dataset = CircularOrbit(root_dir=args.data_dir, fraction=args.fraction)
+    train_dataset = CircularOrbit(root_dir=args.data_dir, fraction=args.fraction, num_samples = 40000)
     print('Creating test dataset')
-    valid_dataset = CircularOrbit(root_dir=args.data_dir, fraction=args.fraction, train=False)
+    valid_dataset = CircularOrbit(root_dir=args.data_dir, fraction=args.fraction, num_samples = 40000, train=False)
 
     kwargs = {'num_workers': args.workers, 'pin_memory': True} if cuda else {}
     print('train set:', len(train_dataset))
@@ -85,6 +85,8 @@ if __name__ == '__main__':
         x, v = batch
         #print('CircOrbit_run-gqn.py: x shape', x.shape, ' -- v shape', v.shape)
         x, v = x.to(device), v.to(device)
+        x = x.unsqueeze_(0)
+        v = v.unsqueeze_(0)
         #x, v, x_q, v_q = partition(x, v)
         # Maximum number of context points to use
         _, b, m, *x_dims = x.shape
@@ -180,7 +182,8 @@ if __name__ == '__main__':
     def log_metrics(engine):
         for key, value in engine.state.metrics.items():
             writer.add_scalar("training/{}".format(key), value, engine.state.iteration)
-
+    
+    """
     @trainer.on(Events.EPOCH_COMPLETED)
     def save_images(engine):
         with torch.no_grad():
@@ -198,6 +201,7 @@ if __name__ == '__main__':
 
             writer.add_image("representation", make_grid(r), engine.state.epoch)
             writer.add_image("reconstruction", make_grid(x_mu), engine.state.epoch)
+    """
 
     @trainer.on(Events.EPOCH_COMPLETED)
     def validate(engine):
@@ -205,10 +209,29 @@ if __name__ == '__main__':
         with torch.no_grad():
             x, v = next(iter(valid_loader))
             x, v = x.to(device), v.to(device)
-            x, v, x_q, v_q = partition(x, v)
+            
+            x = x.unsqueeze_(0)
+            v = v.unsqueeze_(0)
+        # Maximum number of context points to use
+            _, b, m, *x_dims = x.shape
+            _, b, m, *v_dims = v.shape
 
-            # Reconstruction, representation and divergence
-            x_mu, _, kl = model(x, v, x_q, v_q)
+         # "Squeeze" the batch dimension
+            images = x.view((-1, m, *x_dims))
+            views = v.view((-1, m, *v_dims))
+        
+        # Sample random number of views
+            n_context = 15
+            indices = random.sample([i for i in range(m)], n_context)
+    
+        # Partition into context and query sets
+            context_idx, query_idx = indices[:-1], indices[-1]
+
+            x, v = images[:, context_idx], views[:, context_idx]
+            x_q, v_q = images[:, query_idx], views[:, query_idx]
+
+             # Reconstruction, representation and divergence
+            x_mu, _, kl = model(x.float(), v.float(), x_q.float(), v_q.float())
 
             # Validate at last sigma
             ll = Normal(x_mu, sigma_scheme.recent).log_prob(x_q)
