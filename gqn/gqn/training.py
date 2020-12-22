@@ -24,7 +24,7 @@ class Annealer(object):
 
     def state_dict(self):
         return {'init': self.init, 'delta': self.delta, 'steps': self.steps, 's': self.s, 'data': self.data, 'recent': self.recent}
-        
+
     def load_state_dict(self, state_dict):
         self.init = state_dict['init']
         self.delta = state_dict['delta']
