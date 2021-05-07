@@ -1,4 +1,4 @@
-# GQN-lite
+# GQN code for "Online Resident Space-Object Shape Modeling through Implicit Scene Understanding"
 
 Associated Publication:
 
